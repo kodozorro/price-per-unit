@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Цена за единицу</title>
+
+  <!-- PWA / iOS -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Цена/ед." />
+  <link rel="apple-touch-icon" href="icon.svg" />
+
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card2: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --good: #4ade80;
+      --good-bg: rgba(74,222,128,.14);
+      --line: #475569;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f1f5f9;
+        --card: #ffffff;
+        --card2: #e2e8f0;
+        --text: #0f172a;
+        --muted: #64748b;
+        --accent: #0284c7;
+        --good: #16a34a;
+        --good-bg: rgba(22,163,74,.12);
+        --line: #cbd5e1;
+      }
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0;
+      font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 24px);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 480px; margin: 0 auto; }
+    h1 { font-size: 22px; margin: 24px 0 4px; }
+    .sub { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+
+    .verdict {
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 16px;
+      background: var(--card2);
+      text-align: center;
+      font-size: 17px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+    .verdict.win { background: var(--good-bg); color: var(--good); }
+    .verdict small { display:block; color: var(--muted); font-weight: 500; font-size: 13px; margin-top: 6px; }
+
+    .card {
+      background: var(--card);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 14px;
+      border: 2px solid transparent;
+    }
+    .card.win { border-color: var(--good); }
+    .card.optional .card-title::after { content: " · необязательно"; color: var(--muted); font-weight: 400; font-size: 12px; }
+    .card-head { display:flex; justify-content: space-between; align-items:center; margin-bottom: 14px; }
+    .card-title { font-size: 16px; font-weight: 700; }
+    .badge { font-size: 12px; font-weight: 700; color: var(--good); background: var(--good-bg); padding: 4px 10px; border-radius: 999px; }
+    .badge.hide { display:none; }
+
+    .row2 { display: flex; gap: 10px; }
+    .row2 .field { flex: 1; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+    input[type="number"] {
+      width: 100%;
+      font-size: 22px;
+      font-weight: 600;
+      padding: 10px 12px;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+    }
+    input:focus { border-color: var(--accent); }
+    .field { margin-bottom: 14px; }
+
+    .units { display: flex; gap: 6px; flex-wrap: wrap; }
+    .unit {
+      flex: 1 1 0; min-width: 48px; text-align: center;
+      padding: 10px 0; border-radius: 10px;
+      background: var(--card2); color: var(--text);
+      font-size: 14px; font-weight: 600;
+      border: 2px solid transparent; cursor: pointer; user-select: none;
+    }
+    .unit.active { border-color: var(--accent); color: var(--accent); }
+
+    .res { margin-top: 12px; display:grid; gap: 8px; }
+    .res:empty { display:none; }
+    .res-row { display:flex; justify-content: space-between; align-items: baseline;
+      padding: 10px 14px; background: var(--card2); border-radius: 12px; }
+    .res-label { color: var(--muted); font-size: 14px; }
+    .res-val { font-size: 18px; font-weight: 700; }
+
+    .cur { display:flex; align-items:center; gap: 8px; margin-bottom: 14px; color: var(--muted); font-size: 14px; }
+    .cur input { width: 60px; font-size: 16px; font-weight: 600; padding: 6px 10px;
+      border: 2px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); outline:none; text-align:center; }
+
+    .reset { display:block; width:100%; margin: 4px 0 10px; padding: 12px; border:none; border-radius: 12px;
+      background: var(--card2); color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer; }
+    .hint { color: var(--muted); font-size: 13px; text-align: center; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Цена за единицу</h1>
+    <p class="sub">Заполни один товар — узнаешь цену за единицу. Заполни несколько — сравним.</p>
+
+    <div class="cur">
+      <span>Валюта:</span>
+      <input id="cur" type="text" value="₽" maxlength="4" />
+    </div>
+
+    <div id="verdict" class="verdict">Введи цену и количество хотя бы для одного товара</div>
+
+    <div id="cards"></div>
+
+    <button class="reset" id="reset">Очистить всё</button>
+    <p class="hint">Добавь на экран «Домой»: «Поделиться» → «На экран Домой»</p>
+  </div>
+
+  <script>
+    const UNITS = [
+      { key: "g",   label: "г"  },
+      { key: "kg",  label: "кг" },
+      { key: "ml",  label: "мл" },
+      { key: "l",   label: "л"  },
+      { key: "pcs", label: "шт" },
+    ];
+    // А — основной, Б и В — необязательные
+    const CARDS = [
+      { title: "Товар А", optional: false },
+      { title: "Товар Б", optional: true  },
+      { title: "Товар В", optional: true  },
+    ];
+    const curEl = document.getElementById("cur");
+    const cardsEl = document.getElementById("cards");
+
+    function meta(unit) {
+      switch (unit) {
+        case "g":   return { cat: "weight", toBase: 1 };
+        case "kg":  return { cat: "weight", toBase: 1000 };
+        case "ml":  return { cat: "volume", toBase: 1 };
+        case "l":   return { cat: "volume", toBase: 1000 };
+        case "pcs": return { cat: "pcs",    toBase: 1 };
+      }
+    }
+    function fmt(n) {
+      if (!isFinite(n)) return "—";
+      return n.toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + " " + (curEl.value || "");
+    }
+    function pctStr(n) { return n.toLocaleString("ru-RU", { maximumFractionDigits: 1 }); }
+
+    const items = CARDS.map((c) => {
+      const card = document.createElement("div");
+      card.className = "card" + (c.optional ? " optional" : "");
+      card.innerHTML = `
+        <div class="card-head">
+          <span class="card-title">${c.title}</span>
+          <span class="badge hide">выгоднее</span>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Цена</label>
+            <input class="price" type="number" inputmode="decimal" placeholder="0" min="0" /></div>
+          <div class="field"><label>Кол-во / масса</label>
+            <input class="amount" type="number" inputmode="decimal" placeholder="0" min="0" /></div>
+        </div>
+        <div class="units"></div>
+        <div class="res"></div>`;
+      cardsEl.appendChild(card);
+
+      const state = {
+        card, title: c.title, unit: "g",
+        priceEl: card.querySelector(".price"),
+        amountEl: card.querySelector(".amount"),
+        unitsEl: card.querySelector(".units"),
+        resEl: card.querySelector(".res"),
+        badgeEl: card.querySelector(".badge"),
+      };
+      state.unitsEl.innerHTML = UNITS.map((u, i) =>
+        `<div class="unit ${i === 0 ? "active" : ""}" data-unit="${u.key}">${u.label}</div>`).join("");
+      state.unitsEl.addEventListener("click", (e) => {
+        const u = e.target.closest(".unit"); if (!u) return;
+        state.unitsEl.querySelectorAll(".unit").forEach(x => x.classList.remove("active"));
+        u.classList.add("active"); state.unit = u.dataset.unit; recalc();
+      });
+      [state.priceEl, state.amountEl].forEach(el => el.addEventListener("input", recalc));
+      return state;
+    });
+    curEl.addEventListener("input", recalc);
+
+    function perBase(state) {
+      const price = parseFloat(state.priceEl.value.replace(",", "."));
+      const amount = parseFloat(state.amountEl.value.replace(",", "."));
+      if (!(price > 0 && amount > 0)) return null;
+      const m = meta(state.unit);
+      return { cat: m.cat, value: price / (amount * m.toBase) };
+    }
+
+    function renderItem(state) {
+      const m = meta(state.unit);
+      const pb = perBase(state);
+      if (!pb) { state.resEl.innerHTML = ""; return; }
+      const v = pb.value;
+      let rows;
+      if (m.cat === "weight")      rows = [["За 100 г", v * 100], ["За 1 кг", v * 1000]];
+      else if (m.cat === "volume") rows = [["За 100 мл", v * 100], ["За 1 л", v * 1000]];
+      else                         rows = [["За 1 штуку", v], ["За 10 штук", v * 10]];
+      state.resEl.innerHTML = rows.map(([label, val]) =>
+        `<div class="res-row"><span class="res-label">${label}</span>
+         <span class="res-val">${fmt(val)}</span></div>`).join("");
+    }
+
+    function recalc() {
+      items.forEach(renderItem);
+      items.forEach(s => { s.card.classList.remove("win"); s.badgeEl.classList.add("hide"); });
+      const verdict = document.getElementById("verdict");
+      verdict.classList.remove("win");
+
+      const filled = items.map(s => ({ s, pb: perBase(s) })).filter(x => x.pb);
+
+      if (filled.length === 0) {
+        verdict.textContent = "Введи цену и количество хотя бы для одного товара";
+        return;
+      }
+      if (filled.length === 1) {
+        verdict.innerHTML = "Цена за единицу посчитана 👇<small>Заполни ещё товар, чтобы сравнить</small>";
+        return;
+      }
+      const cats = new Set(filled.map(x => x.pb.cat));
+      if (cats.size > 1) {
+        verdict.innerHTML = "Товары в разных единицах — сравнение невозможно<small>Выбери для всех вес, объём или штуки</small>";
+        return;
+      }
+      // ищем самый дешёвый и самый дорогой среди заполненных
+      let best = filled[0], worst = filled[0];
+      filled.forEach(x => {
+        if (x.pb.value < best.pb.value)  best = x;
+        if (x.pb.value > worst.pb.value) worst = x;
+      });
+      if (Math.abs(worst.pb.value - best.pb.value) < 1e-9) {
+        verdict.textContent = "Цена за единицу одинаковая 🤝";
+        return;
+      }
+      best.s.card.classList.add("win");
+      best.s.badgeEl.classList.remove("hide");
+      verdict.classList.add("win");
+      const pct = (worst.pb.value - best.pb.value) / worst.pb.value * 100;
+      const tail = filled.length > 2 ? " (дешевле самого дорогого)" : "";
+      verdict.innerHTML = `${best.s.title} выгоднее на ${pctStr(pct)}%<small>${tail || "&nbsp;"}</small>`;
+    }
+
+    document.getElementById("reset").addEventListener("click", () => {
+      items.forEach(s => { s.priceEl.value = ""; s.amountEl.value = ""; });
+      recalc();
+    });
+
+    recalc();
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  </script>
+</body>
+</html>
